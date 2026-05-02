@@ -4,7 +4,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { DeviceCard } from "@/components/DeviceCard";
 import { getDevices } from "@/lib/devices";
 
-export const Route = createFileRoute("/devices")({
+export const Route = createFileRoute("/devices/")({
   component: () => (
     <AuthGuard>
       <DashboardLayout>
