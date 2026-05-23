@@ -7,12 +7,12 @@ import numpy as np
 def main():
     try:
         if len(sys.argv) < 5:
-            raise ValueError("Expected 4 arguments: temperature, current, voltage, usageHours")
+            raise ValueError("Expected 4 arguments: temperature, humidity, current, voltage")
 
         temperature = float(sys.argv[1])
-        current = float(sys.argv[2])
-        voltage = float(sys.argv[3])
-        usageHours = float(sys.argv[4])
+        humidity = float(sys.argv[2])
+        current = float(sys.argv[3])
+        voltage = float(sys.argv[4])
 
         model_path = os.path.join(os.path.dirname(__file__), 'device_health_model.pkl')
         if not os.path.exists(model_path):
@@ -21,7 +21,7 @@ def main():
         model = joblib.load(model_path)
 
         # Predict
-        X_new = np.array([[temperature, current, voltage, usageHours]])
+        X_new = np.array([[temperature, humidity, current, voltage]])
         health_score = model.predict(X_new)[0]
 
         # Determine risk

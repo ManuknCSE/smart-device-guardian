@@ -136,3 +136,60 @@ export function getDeviceHistory(id: string) {
   }
   return points;
 }
+
+export async function fetchLiveDevice(): Promise<Device | null> {
+  try {
+    const res = await fetch("http://localhost:5000/api/latest");
+    if (!res.ok) return null;
+    const data = await res.json();
+    
+    // Map Flask log format to Device format
+    const device: Device = {
+      id: "live-device",
+      deviceName: "Smart Device Guardian (Live)",
+      healthScore: data.health_score ?? 100,
+      temperature: data.temperature ?? 0,
+      current: data.current ?? 0,
+      voltage: data.voltage ?? 0,
+      usageHours: 120, // Static usage representation or length of history
+      status: data.relay_status === "OFF" ? "off" : "on",
+      trend: "stable",
+      risk: data.risk ?? "low",
+      sensors: [
+        { name: "DS18B20", type: "Temperature", description: "Digital temperature sensor", value: `${data.temperature} °C` },
+        { name: "ACS712", type: "Current", description: "Hall-effect current sensor", value: `${data.current} A` },
+        { name: "ZMPT101B", type: "Voltage", description: "Precision AC voltage sensor", value: `${data.voltage} V` },
+        { name: "DHT11/22", type: "RTC", description: "Humidity sensor", value: `${data.humidity} %` }
+      ],
+      alerts: data.alerts ? data.alerts.map((a: any) => ({
+        id: a.id,
+        level: a.level,
+        message: a.message,
+        timestamp: a.timestamp
+      })) : []
+    };
+    return device;
+  } catch (err) {
+    console.error("Error fetching live device telemetry:", err);
+    return null;
+  }
+}
+
+export async function fetchLiveDeviceHistory(): Promise<any[]> {
+  try {
+    const res = await fetch("http://localhost:5000/api/history");
+    if (!res.ok) return [];
+    const data = await res.json();
+    
+    // Map history to chart points (history is returned newest-first, reverse it)
+    return [...data].reverse().map((d: any) => ({
+      time: d.timestamp ? d.timestamp.split(" ")[1] : "00:00", // Extract time HH:MM:SS
+      temperature: d.temperature,
+      current: d.current,
+      usage: d.humidity // Representing humidity or usage
+    }));
+  } catch (err) {
+    console.error("Error fetching live device history:", err);
+    return [];
+  }
+}

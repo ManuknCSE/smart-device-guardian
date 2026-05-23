@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
 import { AuthGuard } from "@/components/AuthGuard";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { DeviceCard } from "@/components/DeviceCard";
-import { getDevices } from "@/lib/devices";
+import { getDevices, fetchLiveDevice, Device } from "@/lib/devices";
 import { Activity, AlertTriangle, CheckCircle2, Cpu } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard")({
@@ -16,12 +17,33 @@ export const Route = createFileRoute("/dashboard")({
 });
 
 function DashboardPage() {
-  const devices = getDevices();
+  const [devices, setDevices] = useState<Device[]>(getDevices());
+
+  useEffect(() => {
+    let active = true;
+    async function loadLiveTelemetry() {
+      const live = await fetchLiveDevice();
+      if (live && active) {
+        setDevices((prev) => {
+          const filtered = prev.filter((d) => d.id !== "live-device");
+          return [live, ...filtered];
+        });
+      }
+    }
+    
+    loadLiveTelemetry();
+    const interval = setInterval(loadLiveTelemetry, 5000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, []);
+
   const total = devices.length;
   const healthy = devices.filter((d) => d.healthScore >= 75).length;
   const aging = devices.filter((d) => d.healthScore >= 50 && d.healthScore < 75).length;
   const risky = devices.filter((d) => d.healthScore < 50).length;
-  const avg = Math.round(devices.reduce((a, d) => a + d.healthScore, 0) / total);
+  const avg = total > 0 ? Math.round(devices.reduce((a, d) => a + d.healthScore, 0) / total) : 0;
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">

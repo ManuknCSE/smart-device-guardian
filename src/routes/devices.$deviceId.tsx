@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   ArrowLeft, Thermometer, Zap, Activity, Clock, AlertTriangle,
   TrendingUp, TrendingDown, Minus, Power, ShieldAlert, Cpu, Gauge
@@ -8,7 +8,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { AuthGuard } from "@/components/AuthGuard";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { HealthRing } from "@/components/HealthRing";
-import { getDevice, getDeviceHistory } from "@/lib/devices";
+import { getDevice, getDeviceHistory, fetchLiveDevice, fetchLiveDeviceHistory, Device } from "@/lib/devices";
 
 export const Route = createFileRoute("/devices/$deviceId")({
   component: () => (
@@ -30,9 +30,55 @@ const sensorIcons: Record<string, any> = {
 function DeviceDetailPage() {
   const { deviceId } = Route.useParams();
   const navigate = useNavigate();
-  const device = getDevice(deviceId);
-  const history = getDeviceHistory(deviceId);
-  const [isOn, setIsOn] = useState(device?.status === "on");
+  
+  const [device, setDevice] = useState<Device | undefined>(
+    deviceId === "live-device" ? undefined : getDevice(deviceId)
+  );
+  const [history, setHistory] = useState<any[]>(
+    deviceId === "live-device" ? [] : getDeviceHistory(deviceId)
+  );
+  const [loading, setLoading] = useState(deviceId === "live-device");
+  const [isOn, setIsOn] = useState(true);
+
+  useEffect(() => {
+    if (deviceId !== "live-device") {
+      const dev = getDevice(deviceId);
+      if (dev) {
+        setIsOn(dev.status === "on");
+      }
+      return;
+    }
+
+    let active = true;
+    async function loadTelemetry() {
+      const live = await fetchLiveDevice();
+      const hist = await fetchLiveDeviceHistory();
+      if (active) {
+        if (live) {
+          setDevice(live);
+          setIsOn(live.status === "on");
+        }
+        setHistory(hist);
+        setLoading(false);
+      }
+    }
+
+    loadTelemetry();
+    const interval = setInterval(loadTelemetry, 3000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [deviceId]);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-40 gap-4">
+        <div className="h-10 w-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+        <p className="text-muted-foreground animate-pulse text-sm">Connecting to Flask server and fetching live telemetry...</p>
+      </div>
+    );
+  }
 
   if (!device) {
     return (

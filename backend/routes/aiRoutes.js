@@ -81,4 +81,36 @@ router.post('/suggest', (req, res) => {
   res.json({ suggestions });
 });
 
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+
+// @route   POST /api/ai/chat
+// @desc    Chat with Gemini as an IoT Assistant
+// @access  Public or Private
+router.post('/chat', async (req, res) => {
+  try {
+    const { message, context } = req.body;
+
+    if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'your_gemini_api_key_here') {
+      return res.status(500).json({ error: "Gemini API Key is missing. Please add it to backend/.env" });
+    }
+
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-2.0-flash",
+      systemInstruction: `You are a Smart Device Guardian AI assistant. 
+You analyze IoT devices for health, temperature, current, voltage, and predict failures.
+Current Device Context: ${JSON.stringify(context)}
+Be helpful, concise, and provide actionable maintenance advice based on the data.`,
+    });
+
+    const result = await model.generateContent(message);
+    const responseText = result.response.text();
+
+    res.json({ reply: responseText });
+  } catch (error) {
+    console.error("Gemini Error:", error);
+    res.status(500).json({ error: "Failed to communicate with Gemini API: " + error.message });
+  }
+});
+
 module.exports = router;
